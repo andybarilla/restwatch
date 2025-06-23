@@ -11,18 +11,27 @@ func HomePage(msgs []PubSubMessage) Node {
 	},
 		Div(
 			Table(
-				Attr("sse-connect", "/sse-events"),
-				Attr("sse-swap", "incoming-messages"),
-				ID("incoming-messages"),
+				Attr("sse-connect", "/sse-events?stream=all"),
 				Class("table"),
 				THead(
 					Tr(
 						Th(Text("Message")),
 					),
 					TBody(
-						Map(msgs, func(msg PubSubMessage) Node {
-							return MessageRow(msg)
-						}),
+						Attr("sse-swap", "incoming-messages"),
+						Attr("hx-swap", "beforeend"),
+						If(len(msgs) == 0,
+							Tr(
+								Td(
+									Text("No messages yet."),
+								),
+							),
+						),
+						If(len(msgs) > 0,
+							Map(msgs, func(msg PubSubMessage) Node {
+								return MessageRow(msg)
+							}),
+						),
 					),
 				),
 			),

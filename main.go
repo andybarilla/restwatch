@@ -27,7 +27,8 @@ func start(log *slog.Logger) error {
 	defer stop()
 
 	s := NewServer(NewServerOptions{
-		Log: log,
+		Log:         log,
+		OfflineMode: false,
 	})
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -39,16 +40,16 @@ func start(log *slog.Logger) error {
 	<-ctx.Done()
 	log.Info("Shutting down RestWatch server")
 
-	eg.Go(func() error {
-		return s.Stop()
-	})
+	//eg.Go(func() error {
+	//	return s.Stop()
+	//})
 
-	if err := eg.Wait(); err != nil {
-		log.Error("Error during shutdown", "error", err)
-		return err
-	}
-
-	log.Info("RestWatch Server stopped gracefully")
+	//if err := eg.Wait(); err != nil {
+	//	log.Error("Error during shutdown", "error", err)
+	//	return err
+	//}
+	//
+	//log.Info("RestWatch Server stopped gracefully")
 
 	return nil
 }

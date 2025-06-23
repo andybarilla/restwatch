@@ -1,9 +1,12 @@
 package main
 
 import (
-	"context"
+	"bytes"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/r3labs/sse/v2"
 	"io"
 	"log/slog"
 	. "maragu.dev/gomponents"
@@ -14,49 +17,54 @@ import (
 )
 
 type Server struct {
+	opts          NewServerOptions
 	log           *slog.Logger
-	mux           *http.ServeMux
-	server        *http.Server
+	router        *chi.Mux
 	statusChannel chan PubSubMessage
 	messages      []PubSubMessage
 	mu            sync.Mutex
-	sseConn       *SSEConn
+	sse           *sse.Server
 }
 
 type NewServerOptions struct {
-	Log *slog.Logger
+	Log         *slog.Logger
+	Addr        string
+	OfflineMode bool
 }
 
 func NewServer(opts NewServerOptions) *Server {
 	if opts.Log == nil {
 		opts.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
+	if opts.Addr == "" {
+		opts.Addr = ":8080"
+	}
 
-	mux := http.NewServeMux()
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
 
 	return &Server{
-		log: opts.Log,
-		mux: mux,
-		server: &http.Server{
-			Addr:              ":8080",
-			Handler:           mux,
-			ReadTimeout:       5 * time.Second,
-			ReadHeaderTimeout: 5 * time.Second,
-			WriteTimeout:      5 * time.Second,
-			IdleTimeout:       5 * time.Second,
-		},
+		log:           opts.Log,
+		router:        r,
 		statusChannel: make(chan PubSubMessage),
+		opts:          opts,
 	}
 }
 
 func (s *Server) Start() error {
-	s.log.Info("Starting http server", "addr", s.server.Addr)
+	s.log.Info("Starting http server", "addr", s.opts.Addr)
+
+	s.sse = sse.New()
+	s.sse.CreateStream("all")
 
 	s.setupRoutes()
 	go s.processingIncoming()
 
 	// Start the HTTP server
-	if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := http.ListenAndServe(s.opts.Addr, s.router); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
@@ -65,74 +73,73 @@ func (s *Server) Start() error {
 
 func (s *Server) Stop() error {
 	s.log.Info("Stopping http server")
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	if err := s.server.Shutdown(ctx); err != nil {
-		s.log.Error("Error shutting down server", "error", err)
-		return err
-	}
-
-	s.log.Info("HTTP server stopped gracefully")
 	return nil
 }
 
 func (s *Server) setupRoutes() {
-	Static(s.mux)
-	s.mux.HandleFunc("/messages", messageHandler(s.statusChannel, s.log))
-	s.mux.HandleFunc("/sse-events", s.handleEvents())
+	Static(s.router)
+	if !s.opts.OfflineMode {
+		s.router.HandleFunc("/messages", messageHandler(s.statusChannel, s.log))
+	}
+	s.router.Group(func(r chi.Router) {
+		r.Get("/sse-events", s.sse.ServeHTTP)
+	})
 
-	s.mux.HandleFunc("/", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
+	s.router.HandleFunc("/", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		return HomePage(s.messages), nil
 	}))
 }
 
 func (s *Server) processingIncoming() {
 	s.log.Info("Processing incoming messages...")
+
 	for {
-		msg := <-s.statusChannel
-		s.log.Info("Received message", "message", msg)
-		s.messages = append(s.messages, msg)
-		s.broadcast("<div>test</div>", "incoming-messages")
-	}
-}
+		if s.opts.OfflineMode {
+			val := fmt.Sprintf(`{"time":"%s"}`, time.Now().Format(time.RFC3339))
+			msg := PubSubMessage{RawMessage: val}
+			s.log.Info("Received message", "message", msg)
+			s.messages = append(s.messages, msg)
+			s.broadcastNode(MessageRow(msg), "incoming-messages")
 
-func (s *Server) handleEvents() http.HandlerFunc {
-	s.sseConn = NewSSEConn(s.log)
+			channel := make(chan bool)
+			// this is a goroutine which executes asynchronously
+			go func() {
+				time.Sleep(5 * time.Second)
+				// send a message to the channel
+				channel <- true
+			}()
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		ch := s.sseConn.addClient(SSE_ALL_CLIENTS)
-		defer s.sseConn.removeClient(SSE_ALL_CLIENTS, *ch)
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Content-Type", "text/event-stream")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("Connection", "keep-alive")
-
-		flusher, ok := w.(http.Flusher)
-		if !ok {
-			s.log.Debug("Could not init http.Flusher")
-		}
-
-		for {
+			// setup a channel listener
 			select {
-			case message, ok := <-*ch:
-				if ok {
-					fmt.Println("case message... sending message")
-					fmt.Println(message)
-					_, _ = fmt.Fprintf(w, message)
-					flusher.Flush()
-				} else {
-					return
-				}
-			case <-r.Context().Done():
-				fmt.Println("Client closed connection")
-				return
+			case val := <-channel:
+				s.log.Debug("Received value from channel", "val", val)
+			}
+		} else {
+			for {
+				msg := <-s.statusChannel
+				s.log.Info("Received message", "message", msg)
+				s.messages = append(s.messages, msg)
+				s.broadcastNode(MessageRow(msg), "incoming-messages")
 			}
 		}
 	}
 }
 
-func (s *Server) broadcast(data, event string) {
-	s.sseConn.broadcast(SSE_ALL_CLIENTS, data, event)
+func (s *Server) broadcastNode(data Node, event string) {
+	var b bytes.Buffer
+	if err := data.Render(&b); err != nil {
+		s.log.Error("Failed to render node", "error", err)
+		return
+	}
+	s.sse.Publish("all", &sse.Event{
+		Event: []byte(event),
+		Data:  b.Bytes(),
+	})
+}
+
+func (s *Server) broadcastString(data string, event string) {
+	s.sse.Publish("all", &sse.Event{
+		Event: []byte(event),
+		Data:  []byte(data),
+	})
 }

@@ -1,8 +1,8 @@
 .DEFAULT_GOAL := dev
 
 htmx:
-	wget -O public/scripts/htmx.min.js https://cdn.jsdelivr.net/npm/htmx.org@2.0.5/dist/htmx.min.js
-	wget -O public/scripts/htmx-ext-sse.min.js https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.2
+	curl -o public/scripts/htmx-ext-sse.min.js https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.2
+	curl -o public/scripts/htmx.min.js https://cdn.jsdelivr.net/npm/htmx.org@2.0.5/dist/htmx.min.js
 
 clean:
 	rm -rf ./public/output.css
