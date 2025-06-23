@@ -5,13 +5,35 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-func HomePage() Node {
+func HomePage(msgs []PubSubMessage) Node {
 	return page(PageProps{
 		Title: "RestWatch",
 	},
 		Div(
-			Class("p-4 bg-gray-100 rounded shadow"),
-			Text("hello world"),
+			Table(
+				Attr("sse-connect", "/sse-events"),
+				Attr("sse-swap", "incoming-messages"),
+				ID("incoming-messages"),
+				Class("table"),
+				THead(
+					Tr(
+						Th(Text("Message")),
+					),
+					TBody(
+						Map(msgs, func(msg PubSubMessage) Node {
+							return MessageRow(msg)
+						}),
+					),
+				),
+			),
+		),
+	)
+}
+
+func MessageRow(msg PubSubMessage) Node {
+	return Tr(
+		Td(
+			Text(msg.RawMessage),
 		),
 	)
 }

@@ -10,7 +10,9 @@ import (
 )
 
 func main() {
-	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
 
 	if err := start(log); err != nil {
 		log.Error("Failed to start RestWatch server", "error", err)

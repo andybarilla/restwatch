@@ -6,3 +6,5 @@ require (
 	golang.org/x/sync v0.15.0
 	maragu.dev/gomponents v1.1.0
 )
+
+require maragu.dev/gomponents-htmx v0.6.1
