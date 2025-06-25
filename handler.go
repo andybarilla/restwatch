@@ -5,13 +5,15 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 )
 
 type PubSubMessage struct {
-	Id           string  `json:"id"`
-	Subscription string  `json:"subscription"`
-	Message      Message `json:"Message"`
-	RawMessage   string  `json:"RawMessage"`
+	Id           string    `json:"id"`
+	Subscription string    `json:"subscription"`
+	Message      Message   `json:"Message"`
+	RawMessage   string    `json:"RawMessage"`
+	ReceivedAt   time.Time `json:"receivedAt"`
 }
 
 type Message struct {
@@ -31,6 +33,7 @@ func messageHandler(statusChannel chan PubSubMessage, logger *slog.Logger) http.
 
 		msg := PubSubMessage{
 			RawMessage: string(body),
+			ReceivedAt: time.Now(),
 		}
 		logger.Info(fmt.Sprintf("Received message: %+v", msg))
 

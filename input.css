@@ -1,2 +1,14 @@
 @import "tailwindcss";
 @plugin "daisyui";
+
+table tbody :not(tr:only-child) { /* The override. */
+    --no-data-row: none;
+}
+
+table tbody tr:only-child { /* The override. */
+    --no-data-row: table-row;
+}
+
+.no-data-row {
+    display: var(--no-data-row);
+}

@@ -4,16 +4,20 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/r3labs/sse/v2"
+
 	"io"
 	"log/slog"
-	. "maragu.dev/gomponents"
-	ghttp "maragu.dev/gomponents/http"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httplog/v3"
+	"github.com/r3labs/sse/v2"
+
+	. "maragu.dev/gomponents"
+	ghttp "maragu.dev/gomponents/http"
 )
 
 type Server struct {
@@ -43,7 +47,7 @@ func NewServer(opts NewServerOptions) *Server {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	r.Use(httplog.RequestLogger(opts.Log, &httplog.Options{Level: slog.LevelInfo}))
 	r.Use(middleware.Recoverer)
 
 	return &Server{
@@ -58,6 +62,7 @@ func (s *Server) Start() error {
 	s.log.Info("Starting http server", "addr", s.opts.Addr)
 
 	s.sse = sse.New()
+	s.sse.AutoReplay = false
 	s.sse.CreateStream("all")
 
 	s.setupRoutes()
@@ -85,6 +90,8 @@ func (s *Server) setupRoutes() {
 		r.Get("/sse-events", s.sse.ServeHTTP)
 	})
 
+	s.router.HandleFunc("/clear-messages", s.clearMessages())
+
 	s.router.HandleFunc("/", ghttp.Adapt(func(w http.ResponseWriter, r *http.Request) (Node, error) {
 		return HomePage(s.messages), nil
 	}))
@@ -92,11 +99,16 @@ func (s *Server) setupRoutes() {
 
 func (s *Server) processingIncoming() {
 	s.log.Info("Processing incoming messages...")
+	cnt := 1
 
 	for {
 		if s.opts.OfflineMode {
-			val := fmt.Sprintf(`{"time":"%s"}`, time.Now().Format(time.RFC3339))
-			msg := PubSubMessage{RawMessage: val}
+			cnt += 1
+			val := fmt.Sprintf(`{"name":"event-%d"}`, cnt)
+			msg := PubSubMessage{
+				RawMessage: val,
+				ReceivedAt: time.Now(),
+			}
 			s.log.Info("Received message", "message", msg)
 			s.messages = append(s.messages, msg)
 			s.broadcastNode(MessageRow(msg), "incoming-messages")

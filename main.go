@@ -28,7 +28,7 @@ func start(log *slog.Logger) error {
 
 	s := NewServer(NewServerOptions{
 		Log:         log,
-		OfflineMode: false,
+		OfflineMode: true,
 	})
 
 	eg, ctx := errgroup.WithContext(ctx)
