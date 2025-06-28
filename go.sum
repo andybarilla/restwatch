@@ -1,5 +1,7 @@
 github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/glsubri/gomponents-alpine v0.2.2 h1:EiISxbiM1go8J943z+v2jGG5+8c5sFo7uoCXzQdGKwc=
+github.com/glsubri/gomponents-alpine v0.2.2/go.mod h1:hbjr9/rgZu745kMJ/ulvG5QnwpdRrAdp0EJjb4rcS80=
 github.com/go-chi/chi/v5 v5.2.2 h1:CMwsvRVTbXVytCk1Wd72Zy1LAsAh9GxMmSNWLHCG618=
 github.com/go-chi/chi/v5 v5.2.2/go.mod h1:L2yAIGWB3H+phAw1NxKwWM+7eUH/lU8pOMm5hHcoops=
 github.com/go-chi/httplog/v3 v3.2.2 h1:G0oYv3YYcikNjijArHFUlqfR78cQNh9fGT43i6StqVc=

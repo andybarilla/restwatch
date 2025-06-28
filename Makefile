@@ -1,8 +1,9 @@
 .DEFAULT_GOAL := dev
 
-htmx:
+get_deps:
 	curl -o public/scripts/htmx-ext-sse.min.js https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.2
 	curl -o public/scripts/htmx.min.js https://cdn.jsdelivr.net/npm/htmx.org@2.0.5/dist/htmx.min.js
+	curl -o public/scripts/alpine.min.js https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js
 
 clean:
 	rm -rf ./public/output.css

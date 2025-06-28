@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+@theme {
+    --font-display: 'Garamond', 'Inter', 'sans-serif';
+}
+
 table tbody :not(tr:only-child) { /* The override. */
     --no-data-row: none;
 }

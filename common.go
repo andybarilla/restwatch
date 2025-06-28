@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
+
 	. "maragu.dev/gomponents"
 	hx "maragu.dev/gomponents-htmx"
 	. "maragu.dev/gomponents/components"
@@ -24,6 +25,7 @@ var appCSSPath string
 var htmxJSPath string
 var htmxSseExtJSPath string
 var debugJSPath string
+var alpineJSPath string
 
 func page(props PageProps, children ...Node) Node {
 	hashOnce.Do(func() {
@@ -31,6 +33,7 @@ func page(props PageProps, children ...Node) Node {
 		htmxJSPath = getHashedPath("public/scripts/htmx.min.js")
 		htmxSseExtJSPath = getHashedPath("public/scripts/htmx-ext-sse.min.js")
 		debugJSPath = getHashedPath("public/scripts/debug.js")
+		alpineJSPath = getHashedPath("public/scripts/alpine.min.js")
 	})
 
 	return HTML5(HTML5Props{
@@ -42,6 +45,7 @@ func page(props PageProps, children ...Node) Node {
 			Script(Src(htmxJSPath), Defer()),
 			Script(Src(htmxSseExtJSPath), Defer()),
 			Script(Src(debugJSPath), Defer()),
+			Script(Src(alpineJSPath), Defer()),
 		},
 		Body: []Node{
 			hx.Ext("sse"),
